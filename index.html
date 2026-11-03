@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Posner Cueing · Attention Lab</title>
+  <!-- SETUP: Paste your NEW Posner Apps Script web-app /exec URL below.
+       Leave empty to run locally with downloadable data only.
+       This HTML file is the only file GitHub Pages needs. -->
+  <script>
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSu7snN_fhdKkIjhL-vmCkWE9mKOEISZYDrhYOfLV6FDZktDdOj_jZ2sJHD-0LE7SS/exec";
+  </script>
+  <style>
+    :root { --ink:#14242a; --muted:#4e6168; --accent:#16596a; --line:#d4dddf; --paper:#fff; --task-gray:#a0a0a0; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; }
+    body { font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:#edf1f2; line-height:1.55; }
+    button,input { font:inherit; }
+    button { border:1px solid var(--accent); border-radius:9px; padding:13px 21px; background:var(--accent); color:#fff; font-weight:650; cursor:pointer; }
+    button:hover { filter:brightness(.94); }
+    button:disabled { cursor:wait; opacity:.6; }
+    button.secondary { background:#fff; color:var(--accent); }
+    button:focus-visible,input:focus-visible,a:focus-visible { outline:3px solid #c78121; outline-offset:4px; }
+    input { display:block; width:100%; padding:12px 14px; border:1px solid #9caeb3; border-radius:7px; background:#fff; color:var(--ink); }
+    label { display:block; font-weight:600; }
+    label small { display:block; font-weight:400; margin:3px 0 8px; color:var(--muted); }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { font-size:clamp(32px,4.5vw,48px); line-height:1.13; letter-spacing:-.035em; margin-bottom:20px; }
+    h2 { font-size:25px; line-height:1.25; }
+    h3 { font-size:19px; line-height:1.3; }
+    p { margin-bottom:15px; }
+    strong { font-weight:700; }
+    kbd { display:inline-block; background:#eff2f3; color:#172b33; border:1px solid #c1cdd0; border-bottom:3px solid #aebec3; border-radius:5px; padding:1px 10px; font:650 .95em system-ui,sans-serif; }
+    #screen { max-width:1000px; margin:0 auto; padding:44px 28px 56px; }
+    .eyebrow { font-size:12px; text-transform:uppercase; letter-spacing:.17em; font-weight:750; color:var(--accent); margin-bottom:15px; }
+    .lead { font-size:20px; max-width:760px; }
+    .muted { color:var(--muted); }
+    .small { font-size:14px; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:27px; margin:22px 0; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+    .grid>.panel { margin:0; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:24px; }
+    .note { border-left:3px solid #7a969f; padding-left:16px; font-size:15px; color:var(--muted); margin:22px 0; }
+    .notice { padding:13px 16px; border-radius:8px; background:#e8f0f2; margin:16px 0; font-size:14px; }
+    .error { background:#fff0e8; color:#733818; }
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin:22px 0; }
+    .step { background:#f5f7f7; border:1px solid var(--line); border-radius:10px; padding:18px 14px; text-align:center; }
+    .step .num { font-size:12px; font-weight:750; letter-spacing:.08em; color:var(--accent); text-transform:uppercase; }
+    .step .symbol { display:flex; height:85px; align-items:center; justify-content:center; font-size:44px; font-weight:600; }
+    .ring { width:49px; height:49px; border:5px solid #c60000; border-radius:50%; display:inline-block; }
+    .mini { background:var(--task-gray); border-radius:8px; position:relative; height:140px; margin-bottom:19px; overflow:hidden; }
+    .mini .fix { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#000; font-size:31px; line-height:1; }
+    .mini .ring { position:absolute; left:24%; top:50%; transform:translate(-50%,-50%); }
+    .mini .arrow { position:absolute; left:50%; top:13%; transform:translateX(-50%); color:#000; font-size:45px; line-height:1; }
+    .checks { padding-left:22px; font-size:18px; }
+    .checks li { margin:10px 0; padding-left:3px; }
+    .table-scroll { overflow:auto; }
+    table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+    th,td { text-align:right; padding:15px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+    th:first-child,td:first-child { text-align:left; white-space:normal; }
+    th { color:var(--muted); font-size:13px; font-weight:650; }
+    td { font-size:17px; }
+    .effect { font-weight:750; color:var(--accent); }
+    .footer { margin-top:30px; font-size:12px; color:var(--muted); }
+    #experiment { position:fixed; inset:0; width:100vw; height:100vh; display:none; background:var(--task-gray); }
+    body.testing { overflow:hidden; background:var(--task-gray); cursor:none; }
+    body.testing #screen { display:none; }
+    body.testing #experiment { display:block; }
+    [hidden] { display:none !important; }
+    @media(max-width:700px) { #screen { padding:25px 19px; } .grid { grid-template-columns:1fr; } .panel { padding:20px; } .steps { gap:8px; } .step { padding:12px 8px; } .lead { font-size:18px; } }
+  </style>
+</head>
+<body>
+  <main id="screen" aria-live="polite"></main>
+  <canvas id="experiment" aria-label="Visual attention task. Keep looking at the central cross and press Space when the black X appears."></canvas>
+  <noscript>This task requires JavaScript and a physical keyboard.</noscript>
+  <script>
+  "use strict";
+
+  const TASK_VERSION = "posner-1.0.0";
+  const SETTINGS = Object.freeze({
+    trialsPerBlock:50, validPerBlock:35, fixationMs:800, cueDurationMs:100,
+    peripheralSOAMs:150, endogenousSOAMs:500, responseDeadlineMs:1500,
+    itiMs:650, countdownMs:3000, minimumRTMs:100,
+    background:"#a0a0a0", cueColor:"#c60000", targetSizePx:48,
+    cueDiameterPx:84, fixationSizePx:28, minWidth:700, minHeight:440
+  });
+  const STORAGE_KEY = "posner_cueing_v1";
+  const SESSION_PREFIX = `${STORAGE_KEY}:session:`;
+  const BATCH_PREFIX = `${STORAGE_KEY}:batch:`;
+  const LATEST_SESSION_KEY = `${STORAGE_KEY}:latest`;
+  const BLOCKS = [
+    {number:1, type:"peripheral", label:"Peripheral cue", soa:SETTINGS.peripheralSOAMs},
+    {number:2, type:"endogenous", label:"Central arrow", soa:SETTINGS.endogenousSOAMs}
+  ];
+  const TRIAL_COLUMNS = ["record_id","session_id","participant_id","class_id","task_version","block_number","cue_type","trial_in_block","trial_global","cue_side","target_side","validity","responded","response_status","rt_ms","anticipation_count","first_early_response_phase","first_early_response_time_ms","miss","analysis_include","exclusion_reason","fixation_ms_planned","cue_duration_ms_planned","cue_target_soa_ms_planned","cue_target_gap_ms_planned","response_deadline_ms","iti_ms_planned","cue_duration_ms_actual","cue_target_soa_ms_actual","fixation_ms_actual","max_frame_interval_ms","timing_flag","interrupted","interrupt_reason","fullscreen_at_target","viewport_width","viewport_height","pixel_ratio","target_offset_px","target_size_px","cue_diameter_px","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","target_onset_utc","response_timestamp_utc","server_received_utc"];
+  const BLOCK_COLUMNS = ["record_id","session_id","participant_id","class_id","task_version","block_number","cue_type","n_trials","n_valid","n_invalid","n_responded","n_misses","n_anticipatory_trials","n_interrupted","n_timing_flagged","n_included_valid","n_included_invalid","mean_rt_valid_ms","mean_rt_invalid_ms","median_rt_valid_ms","median_rt_invalid_ms","cueing_effect_ms","block_start_utc","block_end_utc","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","server_received_utc"];
+  const screenEl = document.getElementById("screen");
+  const canvas = document.getElementById("experiment");
+  const ctx = canvas.getContext("2d", {alpha:false});
+  const state = {
+    phase:"idle", active:false, session:null, blockIndex:0, trialIndex:0,
+    current:null, raf:0, lastFrame:null, frameSamples:[], frameMs:1000/60,
+    countdownStart:0, lastCountdown:null, itiStart:0, spaceDown:false,
+    wasFullscreen:false, blockStartUTC:"", geometry:null, saveBusy:false,
+    storageOK:true, storageWarning:"", page:"launcher"
+  };
+  let store = loadStore();
+  let taskWindow = null;
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+  }
+  function randomUnit() {
+    const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]/4294967296;
+  }
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const a = new Uint8Array(16); crypto.getRandomValues(a);
+    a[6]=(a[6]&15)|64; a[8]=(a[8]&63)|128;
+    const s = Array.from(a,x=>x.toString(16).padStart(2,"0")).join("");
+    return `${s.slice(0,8)}-${s.slice(8,12)}-${s.slice(12,16)}-${s.slice(16,20)}-${s.slice(20)}`;
+  }
+  function shuffle(a) {
+    for(let i=a.length-1;i>0;i--) { const j=Math.floor(randomUnit()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  function makeSchedule() {
+    // Exact 35/15 validity and 25/25 target sides. With 35 valid trials,
+    // cue sides cannot ALSO be 25/25; they are 26/24, randomized per block.
+    const extraValidSide = randomUnit()<.5 ? "left" : "right";
+    const rows=[];
+    for(const target of ["left","right"]) {
+      const nValid=target===extraValidSide ? 18 : 17;
+      for(let i=0;i<25;i++) {
+        const valid=i<nValid;
+        rows.push({target_side:target,cue_side:valid?target:(target==="left"?"right":"left"),validity:valid?"valid":"invalid"});
+      }
+    }
+    return shuffle(rows);
+  }
+  function rounded(n) { return Number.isFinite(n) ? Math.round(n*1000)/1000 : null; }
+  function mean(a) { return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
+  function median(a) {
+    if(!a.length) return null;
+    const b=[...a].sort((x,y)=>x-y), m=Math.floor(b.length/2);
+    return b.length%2 ? b[m] : (b[m-1]+b[m])/2;
+  }
+  function timestamps(date=new Date()) {
+    const pad=n=>String(n).padStart(2,"0");
+    const offset=-date.getTimezoneOffset(), sign=offset>=0?"+":"-", abs=Math.abs(offset);
+    const local=`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${String(date.getMilliseconds()).padStart(3,"0")}${sign}${pad(Math.floor(abs/60))}:${pad(abs%60)}`;
+    let zone="unknown"; try { zone=Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown"; } catch(_) {}
+    return {timestamp_utc:date.toISOString(),timestamp_local:local,timezone:zone,utc_offset_minutes:offset};
+  }
+  function storageProblem() {
+    state.storageOK=false;state.storageWarning="Local backup is unavailable. Keep this window open and download your data.";
+  }
+  function mergeSessionReceipts(session,receipts) {
+    if(!session)return;
+    const merged=new Map((session.receipts||[]).map(r=>[r.batch_id,r]));
+    for(const r of receipts)if(r.session_id===session.session_id)merged.set(r.batch_id,{
+      batch_id:r.batch_id,block_number:r.block_number,server_received_utc:r.server_received_utc});
+    session.receipts=[...merged.values()];
+  }
+  function readStoredState() {
+    const outbox=[],receipts=[];
+    for(let i=0;i<localStorage.length;i++) {
+      const key=localStorage.key(i);if(!key?.startsWith(BATCH_PREFIX))continue;
+      const item=JSON.parse(localStorage.getItem(key)||"null");
+      if(item?.status==="pending" && item.job?.payload?.batch_id)outbox.push({...item.job,stored:true});
+      else if(item?.status==="confirmed")receipts.push({...item,stored:true});
+    }
+    const latestID=localStorage.getItem(LATEST_SESSION_KEY);
+    const latest=latestID?JSON.parse(localStorage.getItem(SESSION_PREFIX+latestID)||"null"):null;
+    mergeSessionReceipts(latest,receipts);
+    return {latest,outbox,receipts};
+  }
+  function loadStore() {
+    try{return readStoredState();}
+    catch(error){storageProblem();return {latest:null,outbox:[],receipts:[]};}
+  }
+  function refreshStore() {
+    try {
+      const incoming=readStoredState();
+      const receipts=new Map((store.receipts||[]).map(r=>[r.batch_id,r]));
+      for(const r of incoming.receipts)receipts.set(r.batch_id,r);
+      store.receipts=[...receipts.values()];
+      // Only never-stored jobs need an in-memory fallback. A stale window must
+      // not rewrite a batch that another window has already acknowledged.
+      const jobs=new Map(incoming.outbox.map(j=>[j.payload.batch_id,j]));
+      for(const j of store.outbox)if(!j.stored && !jobs.has(j.payload.batch_id))jobs.set(j.payload.batch_id,j);
+      store.outbox=[...jobs.values()].filter(j=>!receipts.has(j.payload.batch_id));
+      store.latest=state.session || incoming.latest;
+      mergeSessionReceipts(store.latest,store.receipts);
+      return true;
+    } catch(error){storageProblem();return false;}
+  }
+  function persist(makeLatest=false) {
+    if(!state.session)return;
+    store.latest=state.session;mergeSessionReceipts(state.session,store.receipts);
+    try {
+      // Only this run's owning window writes its session. The launcher never
+      // rewrites someone else's snapshot while retrying a pending upload.
+      localStorage.setItem(SESSION_PREFIX+state.session.session_id,JSON.stringify(state.session));
+      if(makeLatest)localStorage.setItem(LATEST_SESSION_KEY,state.session.session_id);
+      if(store.outbox.every(j=>j.stored) && store.receipts.every(r=>r.stored)) {
+        state.storageOK=true;state.storageWarning="";
+      }
+    } catch(error){storageProblem();}
+  }
+  function storePendingJob(job) {
+    try {
+      const key=BATCH_PREFIX+job.payload.batch_id,existing=JSON.parse(localStorage.getItem(key)||"null");
+      if(existing?.status==="confirmed") {
+        store.receipts.push({...existing,stored:true});
+        store.outbox=store.outbox.filter(j=>j.payload.batch_id!==job.payload.batch_id);
+        return;
+      }
+      if(!existing)localStorage.setItem(key,JSON.stringify({status:"pending",job:{
+        endpoint:job.endpoint,payload:job.payload,attempts:0,last_error:""}}));
+      job.stored=true;
+    } catch(error){job.stored=false;storageProblem();}
+  }
+  function confirmBatch(job,receipt) {
+    const saved={status:"confirmed",session_id:job.payload.session_id,batch_id:job.payload.batch_id,
+      block_number:job.payload.blocks[0].block_number,server_received_utc:receipt.server_received_utc};
+    let stored=false;
+    try {
+      // Replace this one batch with a small permanent acknowledgement. Stale
+      // retries never write pending entries, so they cannot resurrect it.
+      localStorage.setItem(BATCH_PREFIX+saved.batch_id,JSON.stringify(saved));stored=true;
+    } catch(error){storageProblem();}
+    store.receipts=store.receipts.filter(r=>r.batch_id!==saved.batch_id);
+    store.receipts.push({...saved,stored});
+    store.outbox=store.outbox.filter(j=>j.payload.batch_id!==saved.batch_id);
+    mergeSessionReceipts(state.session,store.receipts);mergeSessionReceipts(store.latest,store.receipts);
+    // A batch receipt is not necessarily the original per-row timestamp after
+    // a partial write. Local row timestamps remain blank; Sheets owns them.
+  }
+  function endpointReady() {
+    return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GOOGLE_SCRIPT_URL.trim());
+  }
+  function footer() { return `<p class="footer">${TASK_VERSION} · Two blocks · 50 trials per block · Physical keyboard required</p>`; }
+  function setPage(html,name) {
+    state.page=name; document.body.classList.remove("testing"); screenEl.innerHTML=html+footer(); window.scrollTo(0,0);
+  }
+  function bind(id,fn) { const el=document.getElementById(id); if(el) el.addEventListener("click",fn); }
+  function backupContents() {
+    const pending=store.outbox.filter(j=>j.endpoint===GOOGLE_SCRIPT_URL.trim()).length;
+    const hasRun=Boolean(store.latest?.trials?.length);if(!hasRun && !pending)return "";
+    return `<div class="notice">${hasRun?`A previous run is saved in this browser (${store.latest.trials.length} recorded trials). <button class="secondary" id="previous-data" type="button">Download previous run</button>`:""}${pending?`<p id="previous-save-note" style="margin:12px 0 6px">${pending} completed block${pending===1?"":"s"} awaiting Google Sheets confirmation.</p><button class="secondary" id="previous-retry" type="button">Retry pending saves</button>`:""}</div>`;
+  }
+  function backupPanel() {return `<div id="backup-panel">${backupContents()}</div>`;}
+  function updateBackupPanel() {
+    const panel=document.getElementById("backup-panel");
+    if(panel && !state.saveBusy){panel.innerHTML=backupContents();wireBackup();}
+  }
+  function wireBackup() {
+    bind("previous-data",()=>downloadJSON(store.latest));
+    bind("previous-retry",async()=>{
+      const button=document.getElementById("previous-retry");button.disabled=true;await flushOutbox();
+      const pending=store.outbox.filter(j=>j.endpoint===GOOGLE_SCRIPT_URL.trim()).length;
+      const note=document.getElementById("previous-save-note");
+      if(note)note.textContent=pending?`${pending} completed block${pending===1?"":"s"} still awaiting confirmation. Keep the downloaded backup.`:"Google Sheets confirmed all pending blocks saved.";
+      button.disabled=false;
+    });
+  }
+  function showLauncher() {
+    setPage(`<p class="eyebrow">Attention lab</p><h1>Where does your<br>attention go?</h1>
+      <p class="lead">A Posner cueing demonstration: detect a black X after a peripheral flash or a central arrow.</p>
+      <div class="panel"><h2>Before you begin</h2><p>Use a desktop or laptop with a keyboard. The task has <strong>two blocks of 50 trials</strong> and takes about 4 minutes, plus instructions.</p>
+      <p>The task opens in a separate window. Click <strong>Begin block 1</strong> in that window to enter fullscreen and start a three-second countdown.</p>
+      <div class="actions"><button id="open-task" type="button">Open task in a new window</button><button id="same-window" class="secondary" type="button">Use this window</button></div>
+      <p class="small muted" id="launch-note" style="margin-top:15px;margin-bottom:0">Your browser may choose a tab instead of a window. The task itself will still request fullscreen.</p></div>
+      ${backupPanel()}${state.storageWarning?`<p class="notice error">${escapeHTML(state.storageWarning)}</p>`:""}`,"launcher");
+    bind("same-window",showFirstInstructions);
+    bind("open-task",()=>{
+      const url=new URL(location.href); url.searchParams.set("run","1");
+      const w=Math.max(800,window.screen.availWidth), h=Math.max(600,window.screen.availHeight);
+      if(taskWindow && !taskWindow.closed) { taskWindow.focus(); return; }
+      taskWindow=window.open(url.href,"posner_cueing_task",`popup=yes,width=${w},height=${h},left=0,top=0,resizable=yes,scrollbars=yes`);
+      if(taskWindow) { taskWindow.focus(); document.getElementById("launch-note").textContent="The task window is open. Continue there."; }
+      else { showFirstInstructions(); const note=document.getElementById("setup-note"); note.textContent="The browser blocked a new window, so the task will run here."; }
+    });
+    wireBackup();
+  }
+  function showFirstInstructions() {
+    setPage(`<p class="eyebrow">Block 1 of 2 · 50 trials</p><h1>Watch the center.<br>Respond to the X.</h1>
+      <p class="lead">A red circle will briefly appear on the left or right of the fixation cross. Then a black <strong>X</strong> will appear on either side.</p>
+      <div class="steps"><div class="step"><span class="num">1 · Keep looking</span><div class="symbol">+</div><span>Eyes on the central cross</span></div><div class="step"><span class="num">2 · Wait</span><div class="symbol"><span class="ring"></span></div><span>Do not respond to the circle</span></div><div class="step"><span class="num">3 · Respond</span><div class="symbol">X</div><span>Press <kbd>Space</kbd> for the X</span></div></div>
+      <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
+      <div class="panel"><div class="grid"><label>Participant code<small>Use your assigned code, or leave blank for an anonymous code.</small><input id="participant-id" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g., P012"></label><label>Class / group code<small>Optional. Use the code provided by your instructor.</small><input id="class-id" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Optional"></label></div>
+      <p id="setup-note" class="small muted" style="margin-top:16px">Place a finger on Space. A 3–2–1 countdown will appear before the first trial. Press Escape to pause.</p>
+      <p id="start-error" class="notice error" hidden></p><div class="actions"><button id="begin-first" type="button">Begin block 1 · Fullscreen</button></div></div>
+      <p class="small muted">${endpointReady()?"Trial results will be submitted to the instructor’s Google Sheet. You can also download a copy at the end.":"Google Sheets is not connected in this copy. The task still runs and provides downloadable data."}</p>${backupPanel()}`,"instructions1");
+    bind("begin-first",async()=>{
+      const button=document.getElementById("begin-first"); button.disabled=true;
+      const participant=document.getElementById("participant-id").value.trim() || `anon-${uuid().slice(0,8)}`;
+      const classID=document.getElementById("class-id").value.trim();
+      await requestTaskFullscreen();
+      if(!screenLargeEnough()) { showStartError("Use a larger desktop/laptop window (at least 700 × 440 pixels).",button); return; }
+      state.session={session_id:uuid(),participant_id:participant,class_id:classID,task_version:TASK_VERSION,
+        created_utc:new Date().toISOString(),completed:false,settings:{...SETTINGS},
+        schedules:[makeSchedule(),makeSchedule()],trials:[],blocks:[],receipts:[]};
+      persist(true); state.blockIndex=0; state.trialIndex=0; state.blockStartUTC=new Date().toISOString();
+      startCountdown();
+    }); wireBackup();
+  }
+  function showStartError(message,button) {
+    const el=document.getElementById("start-error"); if(el) {el.textContent=message;el.hidden=false;} button.disabled=false;
+  }
+  function screenLargeEnough() { return innerWidth>=SETTINGS.minWidth && innerHeight>=SETTINGS.minHeight; }
+  async function requestTaskFullscreen() {
+    if(!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      try { await document.documentElement.requestFullscreen(); } catch(_) { /* Windowed continuation is supported. */ }
+    }
+    // Let fullscreen resize settle before the timing-sensitive display starts.
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  }
+  function geometry() {
+    return {width:innerWidth,height:innerHeight,cx:innerWidth/2,cy:innerHeight/2,
+      offset:Math.min(360,Math.max(180,innerWidth*.26)),dpr:window.devicePixelRatio||1};
+  }
+  function sizeCanvas() {
+    state.geometry=geometry(); const g=state.geometry;
+    canvas.width=Math.round(g.width*g.dpr); canvas.height=Math.round(g.height*g.dpr);
+    ctx.setTransform(g.dpr,0,0,g.dpr,0,0);
+  }
+  function drawBase() {
+    const g=state.geometry, half=SETTINGS.fixationSizePx/2;
+    ctx.fillStyle=SETTINGS.background;ctx.fillRect(0,0,g.width,g.height);
+    ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.lineCap="butt";ctx.beginPath();
+    ctx.moveTo(g.cx-half,g.cy);ctx.lineTo(g.cx+half,g.cy);ctx.moveTo(g.cx,g.cy-half);ctx.lineTo(g.cx,g.cy+half);ctx.stroke();
+  }
+  function sideX(side) { const g=state.geometry;return g.cx+(side==="left"?-g.offset:g.offset); }
+  function drawCue() {
+    drawBase();const c=state.current,g=state.geometry;
+    if(BLOCKS[state.blockIndex].type==="peripheral") {
+      ctx.strokeStyle=SETTINGS.cueColor;ctx.lineWidth=6;ctx.beginPath();
+      ctx.arc(sideX(c.design.cue_side),g.cy,SETTINGS.cueDiameterPx/2,0,Math.PI*2);ctx.stroke();
+    } else {
+      const dir=c.design.cue_side==="right"?1:-1, y=g.cy-76;
+      ctx.fillStyle="#000";ctx.beginPath();
+      ctx.moveTo(g.cx-32*dir,y-5);ctx.lineTo(g.cx+9*dir,y-5);
+      ctx.lineTo(g.cx+9*dir,y-16);ctx.lineTo(g.cx+35*dir,y);
+      ctx.lineTo(g.cx+9*dir,y+16);ctx.lineTo(g.cx+9*dir,y+5);
+      ctx.lineTo(g.cx-32*dir,y+5);ctx.closePath();ctx.fill();
+    }
+  }
+  function drawTarget() {
+    drawBase();const x=sideX(state.current.design.target_side),y=state.geometry.cy,half=SETTINGS.targetSizePx/2;
+    ctx.strokeStyle="#000";ctx.lineWidth=6;ctx.lineCap="butt";ctx.beginPath();
+    ctx.moveTo(x-half,y-half);ctx.lineTo(x+half,y+half);ctx.moveTo(x-half,y+half);ctx.lineTo(x+half,y-half);ctx.stroke();
+  }
+  function drawCountdown(number) {
+    const g=state.geometry;ctx.fillStyle=SETTINGS.background;ctx.fillRect(0,0,g.width,g.height);
+    ctx.fillStyle="#111";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.font="600 24px system-ui, sans-serif";ctx.fillText("Get ready",g.cx,g.cy-90);
+    ctx.font="600 76px system-ui, sans-serif";ctx.fillText(String(number),g.cx,g.cy);
+    ctx.font="20px system-ui, sans-serif";ctx.fillText("Eyes here · Press Space only for the X",g.cx,g.cy+94);
+  }
+  function setPhase(phase) {state.phase=phase;canvas.dataset.phase=phase;}
+  function startCountdown() {
+    cancelAnimationFrame(state.raf);state.active=true;state.current=null;state.lastFrame=null;
+    state.frameSamples=[];state.lastCountdown=null;state.wasFullscreen=Boolean(document.fullscreenElement);
+    document.body.classList.add("testing");sizeCanvas();setPhase("countdown");
+    state.countdownStart=performance.now();drawCountdown(3);state.raf=requestAnimationFrame(tick);
+  }
+  function beginTrial(now) {
+    const block=BLOCKS[state.blockIndex],g=state.geometry;
+    const design=state.session.schedules[state.blockIndex][state.trialIndex];
+    const stamp=timestamps();
+    state.current={design,trialStart:now,cueOnset:null,cueOffset:null,targetOnset:null,targetUTC:"",
+      maxFrame:0,earlyCount:state.spaceDown?1:0,earlyPhase:state.spaceDown?"held_at_trial_start":"",
+      earlyTime:state.spaceDown?0:null,fullscreenAtTarget:null,stamp,geometry:{...g}};
+    canvas.dataset.block=String(block.number);canvas.dataset.trial=String(state.trialIndex+1);
+    setPhase("fixation");drawBase();
+  }
+  function targetOn(now) {
+    state.current.targetOnset=now;state.current.targetUTC=new Date().toISOString();
+    state.current.fullscreenAtTarget=Boolean(document.fullscreenElement);setPhase("target");drawTarget();
+  }
+  function tick() {
+    if(!state.active) return;
+    const now=performance.now(),delta=state.lastFrame===null?null:now-state.lastFrame;state.lastFrame=now;
+    if(delta!==null && state.phase==="countdown" && delta>1 && delta<100) {
+      state.frameSamples.push(delta);if(state.frameSamples.length>120)state.frameSamples.shift();
+      if(state.frameSamples.length>=15)state.frameMs=median(state.frameSamples);
+    }
+    if(state.current && delta!==null)state.current.maxFrame=Math.max(state.current.maxFrame,delta);
+    const tolerance=Math.min(10,state.frameMs*.45), c=state.current;
+    if(state.phase==="countdown") {
+      const remaining=SETTINGS.countdownMs-(now-state.countdownStart);
+      if(remaining<=tolerance)beginTrial(now);
+      else {const number=Math.ceil(remaining/1000);if(number!==state.lastCountdown){drawCountdown(number);state.lastCountdown=number;}}
+    } else if(state.phase==="fixation" && now-c.trialStart>=SETTINGS.fixationMs-tolerance) {
+      c.cueOnset=now;setPhase("cue");drawCue();
+    } else if(state.phase==="cue" || state.phase==="gap") {
+      if(state.phase==="cue" && now-c.cueOnset>=SETTINGS.cueDurationMs-tolerance) {
+        c.cueOffset=now;setPhase("gap");drawBase();
+      }
+      if(now-c.cueOnset>=BLOCKS[state.blockIndex].soa-tolerance)targetOn(now);
+    } else if(state.phase==="target" && now-c.targetOnset>=SETTINGS.responseDeadlineMs) {
+      finishTrial(null,"miss",now);
+    } else if(state.phase==="iti" && now-state.itiStart>=SETTINGS.itiMs-tolerance) {
+      if(state.trialIndex>=SETTINGS.trialsPerBlock)finishBlock();else beginTrial(now);
+    }
+    if(state.active)state.raf=requestAnimationFrame(tick);
+  }
+  function finishTrial(rt,status,now,interruptReason="") {
+    const c=state.current;if(!c)return;
+    // A queued key event may run before the next animation frame following a
+    // stall. Include that unfinished interval in the timing-quality check.
+    if(state.lastFrame!==null)c.maxFrame=Math.max(c.maxFrame,now-state.lastFrame);
+    const b=BLOCKS[state.blockIndex],s=state.session,g=c.geometry;
+    const actualCue=c.cueOffset===null?null:c.cueOffset-c.cueOnset;
+    const actualSOA=c.targetOnset===null?null:c.targetOnset-c.cueOnset;
+    const actualFix=c.cueOnset===null?null:c.cueOnset-c.trialStart;
+    const timingTolerance=Math.max(25,1.5*state.frameMs);
+    const timingFlag=c.maxFrame>Math.max(50,2.5*state.frameMs)
+      ||(actualCue!==null && Math.abs(actualCue-SETTINGS.cueDurationMs)>timingTolerance)
+      ||(actualSOA!==null && Math.abs(actualSOA-b.soa)>timingTolerance)
+      ||(actualFix!==null && Math.abs(actualFix-SETTINGS.fixationMs)>timingTolerance);
+    const responded=Number.isFinite(rt),interrupted=Boolean(interruptReason);
+    const early=c.earlyCount>0 || (responded && rt<SETTINGS.minimumRTMs);
+    const reasons=[];
+    if(interrupted)reasons.push("interrupted");
+    if(status==="miss")reasons.push("no_response");
+    if(c.earlyCount>0)reasons.push("pretarget_response_or_held_key");
+    if(responded && rt<SETTINGS.minimumRTMs)reasons.push("rt_below_100ms");
+    if(timingFlag)reasons.push("timing_deviation");
+    const row={record_id:`${s.session_id}:trial:${b.number}:${state.trialIndex+1}`,
+      session_id:s.session_id,participant_id:s.participant_id,class_id:s.class_id,task_version:TASK_VERSION,
+      block_number:b.number,cue_type:b.type,trial_in_block:state.trialIndex+1,trial_global:state.blockIndex*SETTINGS.trialsPerBlock+state.trialIndex+1,
+      ...c.design,responded:responded?1:0,response_status:interrupted?"interrupted":(status==="miss"?"miss":(early?"anticipatory":"hit")),
+      rt_ms:rounded(rt),anticipation_count:c.earlyCount,first_early_response_phase:c.earlyPhase,first_early_response_time_ms:rounded(c.earlyTime),
+      miss:status==="miss"?1:0,analysis_include:responded&&!reasons.length?1:0,exclusion_reason:reasons.join(";"),
+      fixation_ms_planned:SETTINGS.fixationMs,cue_duration_ms_planned:SETTINGS.cueDurationMs,cue_target_soa_ms_planned:b.soa,
+      cue_target_gap_ms_planned:b.soa-SETTINGS.cueDurationMs,response_deadline_ms:SETTINGS.responseDeadlineMs,iti_ms_planned:SETTINGS.itiMs,
+      cue_duration_ms_actual:rounded(actualCue),cue_target_soa_ms_actual:rounded(actualSOA),fixation_ms_actual:rounded(actualFix),
+      max_frame_interval_ms:rounded(c.maxFrame),timing_flag:timingFlag?1:0,interrupted:interrupted?1:0,interrupt_reason:interruptReason,
+      fullscreen_at_target:c.fullscreenAtTarget===null?null:(c.fullscreenAtTarget?1:0),viewport_width:g.width,viewport_height:g.height,
+      pixel_ratio:g.dpr,target_offset_px:g.offset,target_size_px:SETTINGS.targetSizePx,cue_diameter_px:SETTINGS.cueDiameterPx,
+      ...c.stamp,target_onset_utc:c.targetUTC,response_timestamp_utc:responded?new Date().toISOString():"",server_received_utc:""};
+    s.trials.push(row);state.trialIndex++;state.current=null;state.itiStart=now;setPhase("iti");drawBase();persist();
+  }
+  function summarizeBlock(blockIndex,startUTC,endUTC) {
+    const s=state.session,b=BLOCKS[blockIndex],rows=s.trials.filter(r=>r.block_number===b.number);
+    const valid=rows.filter(r=>r.analysis_include && r.validity==="valid").map(r=>r.rt_ms);
+    const invalid=rows.filter(r=>r.analysis_include && r.validity==="invalid").map(r=>r.rt_ms);
+    const mv=mean(valid),mi=mean(invalid);
+    return {record_id:`${s.session_id}:block:${b.number}`,session_id:s.session_id,participant_id:s.participant_id,class_id:s.class_id,
+      task_version:TASK_VERSION,block_number:b.number,cue_type:b.type,n_trials:rows.length,
+      n_valid:rows.filter(r=>r.validity==="valid").length,n_invalid:rows.filter(r=>r.validity==="invalid").length,
+      n_responded:rows.filter(r=>r.responded).length,n_misses:rows.filter(r=>r.miss).length,
+      n_anticipatory_trials:rows.filter(r=>r.anticipation_count>0 || (r.responded && r.rt_ms<SETTINGS.minimumRTMs)).length,
+      n_interrupted:rows.filter(r=>r.interrupted).length,n_timing_flagged:rows.filter(r=>r.timing_flag).length,
+      n_included_valid:valid.length,n_included_invalid:invalid.length,mean_rt_valid_ms:rounded(mv),mean_rt_invalid_ms:rounded(mi),
+      median_rt_valid_ms:rounded(median(valid)),median_rt_invalid_ms:rounded(median(invalid)),
+      cueing_effect_ms:mv===null||mi===null?null:rounded(mi-mv),block_start_utc:startUTC,block_end_utc:endUTC,
+      ...timestamps(new Date(endUTC)),server_received_utc:""};
+  }
+  function finishBlock() {
+    state.active=false;cancelAnimationFrame(state.raf);setPhase("between");
+    const row=summarizeBlock(state.blockIndex,state.blockStartUTC,new Date().toISOString());state.session.blocks.push(row);
+    queueBlock(row);if(state.blockIndex===1){state.session.completed=true;state.session.completed_utc=row.block_end_utc;}
+    persist();if(state.blockIndex===0)showBetween();else showResults();
+    void flushOutbox();
+  }
+  function showBetween() {
+    setPage(`<p class="eyebrow">Block 1 complete · Take a break</p><h1>Two ways to<br>direct attention</h1>
+      <div class="grid"><div class="panel"><div class="mini" aria-hidden="true"><span class="fix">+</span><span class="ring"></span></div><h2>Exogenous attention</h2><p>In the first block, the red circle appeared at a possible target location. A sudden peripheral event can rapidly draw attention to its location.</p><p class="muted small" style="margin-bottom:0">This is commonly called <strong>stimulus-driven</strong> orienting.</p></div>
+      <div class="panel"><div class="mini" aria-hidden="true"><span class="fix">+</span><span class="arrow">←</span></div><h2>Endogenous attention</h2><p>Next, an arrow will appear <strong>above the central cross</strong>. Use its direction to prepare for the X while keeping your eyes on the cross.</p><p class="muted small" style="margin-bottom:0">Using the meaning of a cue to direct attention is commonly called <strong>goal-directed</strong> orienting.</p></div></div>
+      <div class="panel"><h2>Block 2: Same response, different cue</h2><p class="lead">Press <kbd>Space</kbd> when the <strong>black X</strong> appears, whichever side it is on. Do not respond to the arrow.</p><p>The arrow points toward the X on <strong>70% of trials</strong> and away from it on <strong>30%</strong>. There are <strong>50 trials</strong>. Keep looking at the cross and release Space between responses.</p>
+      <p id="start-error" class="notice error" hidden></p><div class="actions"><button id="begin-second" type="button">Begin block 2 · 3-second countdown</button></div></div>
+      <p class="note">Both cues predict the target’s location, so both blocks can involve expectations. They illustrate different ways of guiding attention without isolating completely separate processes.</p>
+      <p id="save-status" class="notice"></p>`,"between");
+    updateSaveStatus();
+    bind("begin-second",async()=>{
+      const button=document.getElementById("begin-second");button.disabled=true;await requestTaskFullscreen();
+      if(!screenLargeEnough()){showStartError("Enlarge this window to at least 700 × 440 pixels.",button);return;}
+      state.blockIndex=1;state.trialIndex=0;state.blockStartUTC=new Date().toISOString();startCountdown();
+    });
+  }
+  function pauseTask(reason) {
+    if(!state.active)return;
+    state.active=false;cancelAnimationFrame(state.raf);
+    if(state.current)finishTrial(null,"interrupted",performance.now(),reason);
+    setPhase("paused");state.spaceDown=false;persist();
+    const n=state.trialIndex;
+    setPage(`<p class="eyebrow">Task paused · Block ${state.blockIndex+1}</p><h1>Ready when you are.</h1>
+      <p class="lead">${n} of 50 trial slots have been recorded in this block.</p><div class="panel"><p>The task paused because ${escapeHTML(({window_blur:"the task window lost focus",hidden_tab:"the tab was hidden",fullscreen_exit:"fullscreen ended",window_resized:"the window size changed",escape:"Escape was pressed"})[reason]||"the display was interrupted")}.</p>
+      <p>If a trial was in progress, it was marked as interrupted and excluded from the reaction-time summary. It will not be repeated.</p><p>Keep your eyes on the cross and press Space only when the X appears.</p><p id="start-error" class="notice error" hidden></p><div class="actions"><button id="resume" type="button">Continue · 3-second countdown</button><button id="pause-download" class="secondary" type="button">Download data so far</button></div></div>`,"paused");
+    bind("pause-download",()=>downloadJSON(state.session));
+    bind("resume",async()=>{const button=document.getElementById("resume");button.disabled=true;await requestTaskFullscreen();
+      if(!screenLargeEnough()){showStartError("Enlarge this window to at least 700 × 440 pixels.",button);return;}
+      if(state.trialIndex>=SETTINGS.trialsPerBlock)finishBlock();else startCountdown();});
+  }
+  function showResults() {
+    const s=state.session,fmt=x=>x===null?"—":`${Math.round(x)} ms`;
+    const rows=s.blocks.map(b=>`<tr><td><strong>${b.block_number===1?"Peripheral cue":"Central arrow"}</strong><br><span class="small muted">${b.n_included_valid} valid + ${b.n_included_invalid} invalid included</span></td><td>${fmt(b.mean_rt_valid_ms)}</td><td>${fmt(b.mean_rt_invalid_ms)}</td><td class="effect">${b.cueing_effect_ms===null?"—":`${b.cueing_effect_ms>0?"+":""}${Math.round(b.cueing_effect_ms)} ms`}</td></tr>`).join("");
+    const excluded=s.trials.filter(r=>!r.analysis_include).length;
+    setPage(`<p class="eyebrow">Both blocks complete</p><h1>Your cueing results</h1><p class="lead">The cueing effect is the mean reaction time on <strong>invalid trials minus valid trials</strong>, calculated separately for each block.</p>
+      <div class="panel table-scroll"><table><thead><tr><th>Block / included trials</th><th>Valid RT</th><th>Invalid RT</th><th>Invalid − valid</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p>A <strong>positive</strong> difference means you responded faster when the cue indicated the target’s location. A negative difference means the reverse occurred in this run.</p>
+      <p class="note">Each block contains only 15 invalid trials, so individual results can be noisy. Compare valid and invalid trials <strong>within each block</strong>. Block order and cue timing also differ, so the overall difference between blocks does not isolate the two kinds of attention.</p>
+      <details class="panel"><summary>Which trials were included?</summary><p style="margin-top:16px">${s.trials.length-excluded} of ${s.trials.length} trial slots were included. Mean and median RTs use responses from 100 to 1,500 ms, with no early Space press or held key, no interruption, and no flagged timing problem.</p><p>All recorded trials remain in the downloadable and submitted data, including misses and excluded trials. There is no additional outlier trimming.</p><p class="small muted" style="margin-bottom:0">Fixation was instructed, not measured. Display and keyboard timing depend on the computer and browser.</p></details>
+      <p id="save-status" class="notice"></p><div class="actions"><button id="trials-csv" type="button">Download trial CSV</button><button id="blocks-csv" class="secondary" type="button">Download summary CSV</button><button id="json-backup" class="secondary" type="button">Download full JSON backup</button><button id="retry-save" class="secondary" type="button">Retry Google Sheets save</button></div>
+      <div class="actions"><button id="leave-fullscreen" class="secondary" type="button">Exit fullscreen</button></div><p class="small muted" style="margin-top:20px">Participant: ${escapeHTML(s.participant_id)} · Session: ${escapeHTML(s.session_id.slice(0,8))}</p>`,"results");
+    bind("trials-csv",()=>downloadCSV(s.trials,TRIAL_COLUMNS,`Posner_Trials_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.csv`));
+    bind("blocks-csv",()=>downloadCSV(s.blocks,BLOCK_COLUMNS,`Posner_Blocks_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.csv`));
+    bind("json-backup",()=>downloadJSON(s));bind("retry-save",()=>void flushOutbox());
+    bind("leave-fullscreen",async()=>{if(document.fullscreenElement)try{await document.exitFullscreen();}catch(_){};});
+    updateSaveStatus();
+  }
+  function safeFilename(s) {return String(s).replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"participant";}
+  function downloadText(content,type,name) {
+    const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement("a");
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+  function csvCell(value) {
+    if(value===null||value===undefined)return "";
+    // Protect codes/text from being interpreted as spreadsheet formulas.
+    let s=String(value);if(typeof value==="string" && /^[\s]*[=+@-]/.test(s))s="'"+s;
+    return '"'+s.replace(/"/g,'""')+'"';
+  }
+  function downloadCSV(rows,columns,name) {
+    const lines=[columns.map(csvCell).join(","),...rows.map(r=>columns.map(c=>csvCell(r[c])).join(","))];
+    downloadText("\uFEFF"+lines.join("\r\n")+"\r\n","text/csv;charset=utf-8",name);
+  }
+  function downloadJSON(s) {
+    downloadText(JSON.stringify(s,null,2),"application/json",`Posner_Backup_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.json`);
+  }
+  function queueBlock(blockRow) {
+    if(!endpointReady())return;
+    const job={endpoint:GOOGLE_SCRIPT_URL.trim(),payload:{schema_version:1,task:"posner_cueing",batch_id:uuid(),receipt_token:uuid()+uuid(),
+      session_id:state.session.session_id,trials:state.session.trials.filter(r=>r.block_number===blockRow.block_number),blocks:[blockRow]},attempts:0,last_error:"",stored:false};
+    store.outbox.push(job);storePendingJob(job);
+  }
+  function receiptStatus(job) {
+    return new Promise((resolve,reject)=>{
+      const callback="posnerReceipt_"+uuid().replace(/-/g,"_"),script=document.createElement("script");
+      const timer=setTimeout(()=>cleanup(new Error("No receipt response")),15000);
+      const cleanup=(error,result)=>{clearTimeout(timer);script.remove();delete window[callback];error?reject(error):resolve(result);};
+      window[callback]=data=>cleanup(null,data);script.onerror=()=>cleanup(new Error("Receipt request failed"));
+      const url=new URL(job.endpoint);url.searchParams.set("action","status");url.searchParams.set("batch_id",job.payload.batch_id);
+      url.searchParams.set("receipt_token",job.payload.receipt_token);url.searchParams.set("callback",callback);url.searchParams.set("t",String(Date.now()));
+      script.src=url.href;script.referrerPolicy="no-referrer";document.head.appendChild(script);
+    });
+  }
+  async function sendBatch(job) {
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),40000);
+    try {
+      // A simple form POST avoids CORS preflight. Its opaque response is NOT proof of saving.
+      await fetch(job.endpoint,{method:"POST",mode:"no-cors",credentials:"omit",redirect:"follow",referrerPolicy:"no-referrer",
+        headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:new URLSearchParams({payload:JSON.stringify(job.payload)}).toString(),signal:controller.signal});
+    } catch(error) {
+      // A failed/aborted fetch can still have committed on the server. Always
+      // check the receipt before deciding that confirmation is unavailable.
+    } finally {clearTimeout(timer);}
+    for(let attempt=0;attempt<3;attempt++) {
+      if(attempt>0)await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));
+      let receipt;try{receipt=await receiptStatus(job);}catch(error){if(attempt===2)throw error;continue;}
+      if(receipt && receipt.ok && receipt.received && receipt.batch_id===job.payload.batch_id
+        && Number(receipt.trial_count)===job.payload.trials.length && Number(receipt.block_count)===job.payload.blocks.length)return receipt;
+    }
+    throw new Error("Google Sheets has not confirmed this batch");
+  }
+  async function flushOutbox() {
+    if(state.saveBusy || state.active || !endpointReady())return;
+    refreshStore();state.saveBusy=true;updateSaveStatus();
+    // Try each pending batch once per invocation. Failed batches stay available for retry.
+    const jobs=[...store.outbox].filter(j=>j.endpoint===GOOGLE_SCRIPT_URL.trim());
+    for(const queued of jobs) {
+      if(state.active)break;
+      refreshStore();const job=store.outbox.find(j=>j.payload.batch_id===queued.payload.batch_id);
+      if(!job)continue;
+      if(!job.stored)storePendingJob(job);
+      if(!store.outbox.some(j=>j.payload.batch_id===job.payload.batch_id))continue;
+      job.attempts++;
+      try {
+        const receipt=await sendBatch(job);
+        confirmBatch(job,receipt);
+      } catch(error) {job.last_error=error.message||"Save not confirmed";}
+      persist();updateSaveStatus();
+    }
+    state.saveBusy=false;updateSaveStatus();
+  }
+  function updateSaveStatus() {
+    const el=document.getElementById("save-status"),button=document.getElementById("retry-save");
+    if(button)button.disabled=state.saveBusy || !endpointReady();
+    if(!el)return;
+    const local=state.storageOK?"A backup is saved in this browser.":"Local backup is unavailable; download a copy before closing this window.";
+    if(!endpointReady()) {el.textContent=`Google Sheets is not connected. ${local} Use the download buttons for your data.`;return;}
+    const n=state.session?.blocks.length||0,confirmed=new Set((state.session?.receipts||[]).map(r=>r.block_number)).size;
+    if(n>0 && confirmed===n)el.textContent=`Google Sheets confirmed ${confirmed} of ${n} completed block${n===1?"":"s"} saved. ${local}`;
+    else if(state.saveBusy)el.textContent=`Saving to Google Sheets… ${local}`;
+    else el.textContent=`Google Sheets has confirmed ${confirmed} of ${n} completed blocks. ${local} Use “Retry Google Sheets save” at the end if needed.`;
+  }
+
+  document.addEventListener("keydown",event=>{
+    if(event.code==="Escape" && state.active){pauseTask("escape");return;}
+    if(event.code!=="Space")return;
+    const alreadyDown=state.spaceDown;state.spaceDown=true;
+    if(!state.active)return;
+    event.preventDefault();if(event.repeat || alreadyDown)return;
+    const now=performance.now(),c=state.current;
+    if(c && ["fixation","cue","gap"].includes(state.phase)) {
+      c.earlyCount++;if(!c.earlyPhase){c.earlyPhase=state.phase;c.earlyTime=now-c.trialStart;}
+    } else if(c && state.phase==="target") {
+      const rt=now-c.targetOnset;
+      if(rt<=SETTINGS.responseDeadlineMs)finishTrial(rt,"hit",now);else finishTrial(null,"miss",now);
+    }
+  });
+  document.addEventListener("keyup",event=>{if(event.code==="Space"){state.spaceDown=false;if(state.active)event.preventDefault();}});
+  window.addEventListener("blur",()=>{if(state.active)pauseTask("window_blur");state.spaceDown=false;});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden && state.active)pauseTask("hidden_tab");});
+  document.addEventListener("fullscreenchange",()=>{if(state.active && state.wasFullscreen && !document.fullscreenElement)pauseTask("fullscreen_exit");});
+  window.addEventListener("resize",()=>{
+    if(!state.active)return;
+    if(state.phase==="countdown"){sizeCanvas();state.lastCountdown=null;}
+    else if(state.geometry && (innerWidth!==state.geometry.width || innerHeight!==state.geometry.height))pauseTask("window_resized");
+  });
+  window.addEventListener("online",()=>{if(!state.active)void flushOutbox();});
+  window.addEventListener("storage",event=>{
+    if(event.key && event.key!==LATEST_SESSION_KEY && !event.key.startsWith(SESSION_PREFIX) && !event.key.startsWith(BATCH_PREFIX))return;
+    refreshStore();updateSaveStatus();
+    if(state.page==="launcher" || state.page==="instructions1")updateBackupPanel();
+  });
+  window.addEventListener("beforeunload",event=>{
+    if(state.active){persist();event.preventDefault();event.returnValue="";}
+  });
+  // Retry existing outbox batches only on a user request or online event, not while a trial is running.
+  if(new URLSearchParams(location.search).get("run")==="1")showFirstInstructions();else showLauncher();
+  </script>
+</body>
+</html>
