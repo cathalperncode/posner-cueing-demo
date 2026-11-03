@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Posner Cueing · Attention Lab</title>
-  <!-- SETUP: Paste your NEW Posner Apps Script web-app /exec URL below.
+  <!-- SETUP: Paste your Posner Apps Script web-app /exec URL below.
+       Updating an existing demo? Copy its current GOOGLE_SCRIPT_URL here.
        Leave empty to run locally with downloadable data only.
        This HTML file is the only file GitHub Pages needs. -->
   <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSu7snN_fhdKkIjhL-vmCkWE9mKOEISZYDrhYOfLV6FDZktDdOj_jZ2sJHD-0LE7SS/exec";
+    const GOOGLE_SCRIPT_URL = "";
   </script>
   <style>
     :root { --ink:#14242a; --muted:#4e6168; --accent:#16596a; --line:#d4dddf; --paper:#fff; --task-gray:#a0a0a0; }
@@ -78,7 +79,14 @@
   <script>
   "use strict";
 
-  const TASK_VERSION = "posner-1.0.0";
+  const TASK_VERSION = "posner-1.1.0";
+  const SCHEMA_VERSION = 2;
+  const STUDENT_FIELDS = Object.freeze([
+    {key:"first_name",id:"first-name",label:"first name",maxLength:80},
+    {key:"last_name",id:"last-name",label:"last name",maxLength:80},
+    {key:"student_id",id:"student-id",label:"student ID",maxLength:64},
+    {key:"section_number",id:"section-number",label:"section number",maxLength:64}
+  ]);
   const SETTINGS = Object.freeze({
     trialsPerBlock:50, validPerBlock:35, fixationMs:800, cueDurationMs:100,
     peripheralSOAMs:150, endogenousSOAMs:500, responseDeadlineMs:1500,
@@ -94,8 +102,8 @@
     {number:1, type:"peripheral", label:"Peripheral cue", soa:SETTINGS.peripheralSOAMs},
     {number:2, type:"endogenous", label:"Central arrow", soa:SETTINGS.endogenousSOAMs}
   ];
-  const TRIAL_COLUMNS = ["record_id","session_id","participant_id","class_id","task_version","block_number","cue_type","trial_in_block","trial_global","cue_side","target_side","validity","responded","response_status","rt_ms","anticipation_count","first_early_response_phase","first_early_response_time_ms","miss","analysis_include","exclusion_reason","fixation_ms_planned","cue_duration_ms_planned","cue_target_soa_ms_planned","cue_target_gap_ms_planned","response_deadline_ms","iti_ms_planned","cue_duration_ms_actual","cue_target_soa_ms_actual","fixation_ms_actual","max_frame_interval_ms","timing_flag","interrupted","interrupt_reason","fullscreen_at_target","viewport_width","viewport_height","pixel_ratio","target_offset_px","target_size_px","cue_diameter_px","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","target_onset_utc","response_timestamp_utc","server_received_utc"];
-  const BLOCK_COLUMNS = ["record_id","session_id","participant_id","class_id","task_version","block_number","cue_type","n_trials","n_valid","n_invalid","n_responded","n_misses","n_anticipatory_trials","n_interrupted","n_timing_flagged","n_included_valid","n_included_invalid","mean_rt_valid_ms","mean_rt_invalid_ms","median_rt_valid_ms","median_rt_invalid_ms","cueing_effect_ms","block_start_utc","block_end_utc","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","server_received_utc"];
+  const TRIAL_COLUMNS = ["record_id","session_id","first_name","last_name","student_id","section_number","task_version","block_number","cue_type","trial_in_block","trial_global","cue_side","target_side","validity","responded","response_status","rt_ms","anticipation_count","first_early_response_phase","first_early_response_time_ms","miss","analysis_include","exclusion_reason","fixation_ms_planned","cue_duration_ms_planned","cue_target_soa_ms_planned","cue_target_gap_ms_planned","response_deadline_ms","iti_ms_planned","cue_duration_ms_actual","cue_target_soa_ms_actual","fixation_ms_actual","max_frame_interval_ms","timing_flag","interrupted","interrupt_reason","fullscreen_at_target","viewport_width","viewport_height","pixel_ratio","target_offset_px","target_size_px","cue_diameter_px","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","target_onset_utc","response_timestamp_utc","server_received_utc"];
+  const BLOCK_COLUMNS = ["record_id","session_id","first_name","last_name","student_id","section_number","task_version","block_number","cue_type","n_trials","n_valid","n_invalid","n_responded","n_misses","n_anticipatory_trials","n_interrupted","n_timing_flagged","n_included_valid","n_included_invalid","mean_rt_valid_ms","mean_rt_invalid_ms","median_rt_valid_ms","median_rt_invalid_ms","cueing_effect_ms","block_start_utc","block_end_utc","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","server_received_utc"];
   const screenEl = document.getElementById("screen");
   const canvas = document.getElementById("experiment");
   const ctx = canvas.getContext("2d", {alpha:false});
@@ -111,6 +119,20 @@
 
   function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+  }
+  function validateStudentDetails(values) {
+    const details={};
+    for(const field of STUDENT_FIELDS) {
+      const value=typeof values[field.key]==="string"?values[field.key].trim():"";
+      if(!value)return {valid:false,fieldId:field.id,message:`Please enter your ${field.label}.`};
+      if(value.length>field.maxLength)return {valid:false,fieldId:field.id,message:`Your ${field.label} must be ${field.maxLength} characters or fewer.`};
+      details[field.key]=value;
+    }
+    // IDs and sections remain text: preserve leading zeros and letter prefixes.
+    return {valid:true,details};
+  }
+  function studentIdentity(session) {
+    return Object.fromEntries(STUDENT_FIELDS.map(field=>[field.key,session[field.key]]));
   }
   function randomUnit() {
     const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]/4294967296;
@@ -291,17 +313,26 @@
       <p class="lead">A red circle will briefly appear on the left or right of the fixation cross. Then a black <strong>X</strong> will appear on either side.</p>
       <div class="steps"><div class="step"><span class="num">1 · Keep looking</span><div class="symbol">+</div><span>Eyes on the central cross</span></div><div class="step"><span class="num">2 · Wait</span><div class="symbol"><span class="ring"></span></div><span>Do not respond to the circle</span></div><div class="step"><span class="num">3 · Respond</span><div class="symbol">X</div><span>Press <kbd>Space</kbd> for the X</span></div></div>
       <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
-      <div class="panel"><div class="grid"><label>Participant code<small>Use your assigned code, or leave blank for an anonymous code.</small><input id="participant-id" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g., P012"></label><label>Class / group code<small>Optional. Use the code provided by your instructor.</small><input id="class-id" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Optional"></label></div>
+      <div class="panel"><h2>Your details</h2><p class="small muted">All four fields are required. Your details will be recorded with your results.</p>
+      <div class="grid"><label>First name<small>Enter your first name.</small><input id="first-name" name="first_name" type="text" maxlength="80" autocomplete="given-name" spellcheck="false" required></label>
+      <label>Last name<small>Enter your last name.</small><input id="last-name" name="last_name" type="text" maxlength="80" autocomplete="family-name" spellcheck="false" required></label>
+      <label>Student ID<small>Include any leading zeros.</small><input id="student-id" name="student_id" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label>
+      <label>Section number<small>Enter your course section number.</small><input id="section-number" name="section_number" type="text" maxlength="64" autocomplete="off" spellcheck="false" required></label></div>
       <p id="setup-note" class="small muted" style="margin-top:16px">Place a finger on Space. A 3–2–1 countdown will appear before the first trial. Press Escape to pause.</p>
       <p id="start-error" class="notice error" hidden></p><div class="actions"><button id="begin-first" type="button">Begin block 1 · Fullscreen</button></div></div>
       <p class="small muted">${endpointReady()?"Trial results will be submitted to the instructor’s Google Sheet. You can also download a copy at the end.":"Google Sheets is not connected in this copy. The task still runs and provides downloadable data."}</p>${backupPanel()}`,"instructions1");
     bind("begin-first",async()=>{
-      const button=document.getElementById("begin-first"); button.disabled=true;
-      const participant=document.getElementById("participant-id").value.trim() || `anon-${uuid().slice(0,8)}`;
-      const classID=document.getElementById("class-id").value.trim();
+      const button=document.getElementById("begin-first");
+      const validation=validateStudentDetails(Object.fromEntries(STUDENT_FIELDS.map(field=>[field.key,document.getElementById(field.id).value])));
+      if(!validation.valid) {
+        showStartError(validation.message,button);
+        document.getElementById(validation.fieldId).focus();
+        return;
+      }
+      document.getElementById("start-error").hidden=true;button.disabled=true;
       await requestTaskFullscreen();
       if(!screenLargeEnough()) { showStartError("Use a larger desktop/laptop window (at least 700 × 440 pixels).",button); return; }
-      state.session={session_id:uuid(),participant_id:participant,class_id:classID,task_version:TASK_VERSION,
+      state.session={session_id:uuid(),...validation.details,task_version:TASK_VERSION,
         created_utc:new Date().toISOString(),completed:false,settings:{...SETTINGS},
         schedules:[makeSchedule(),makeSchedule()],trials:[],blocks:[],receipts:[]};
       persist(true); state.blockIndex=0; state.trialIndex=0; state.blockStartUTC=new Date().toISOString();
@@ -432,7 +463,7 @@
     if(responded && rt<SETTINGS.minimumRTMs)reasons.push("rt_below_100ms");
     if(timingFlag)reasons.push("timing_deviation");
     const row={record_id:`${s.session_id}:trial:${b.number}:${state.trialIndex+1}`,
-      session_id:s.session_id,participant_id:s.participant_id,class_id:s.class_id,task_version:TASK_VERSION,
+      session_id:s.session_id,...studentIdentity(s),task_version:TASK_VERSION,
       block_number:b.number,cue_type:b.type,trial_in_block:state.trialIndex+1,trial_global:state.blockIndex*SETTINGS.trialsPerBlock+state.trialIndex+1,
       ...c.design,responded:responded?1:0,response_status:interrupted?"interrupted":(status==="miss"?"miss":(early?"anticipatory":"hit")),
       rt_ms:rounded(rt),anticipation_count:c.earlyCount,first_early_response_phase:c.earlyPhase,first_early_response_time_ms:rounded(c.earlyTime),
@@ -451,7 +482,7 @@
     const valid=rows.filter(r=>r.analysis_include && r.validity==="valid").map(r=>r.rt_ms);
     const invalid=rows.filter(r=>r.analysis_include && r.validity==="invalid").map(r=>r.rt_ms);
     const mv=mean(valid),mi=mean(invalid);
-    return {record_id:`${s.session_id}:block:${b.number}`,session_id:s.session_id,participant_id:s.participant_id,class_id:s.class_id,
+    return {record_id:`${s.session_id}:block:${b.number}`,session_id:s.session_id,...studentIdentity(s),
       task_version:TASK_VERSION,block_number:b.number,cue_type:b.type,n_trials:rows.length,
       n_valid:rows.filter(r=>r.validity==="valid").length,n_invalid:rows.filter(r=>r.validity==="invalid").length,
       n_responded:rows.filter(r=>r.responded).length,n_misses:rows.filter(r=>r.miss).length,
@@ -508,9 +539,9 @@
       <p class="note">Each block contains only 15 invalid trials, so individual results can be noisy. Compare valid and invalid trials <strong>within each block</strong>. Block order and cue timing also differ, so the overall difference between blocks does not isolate the two kinds of attention.</p>
       <details class="panel"><summary>Which trials were included?</summary><p style="margin-top:16px">${s.trials.length-excluded} of ${s.trials.length} trial slots were included. Mean and median RTs use responses from 100 to 1,500 ms, with no early Space press or held key, no interruption, and no flagged timing problem.</p><p>All recorded trials remain in the downloadable and submitted data, including misses and excluded trials. There is no additional outlier trimming.</p><p class="small muted" style="margin-bottom:0">Fixation was instructed, not measured. Display and keyboard timing depend on the computer and browser.</p></details>
       <p id="save-status" class="notice"></p><div class="actions"><button id="trials-csv" type="button">Download trial CSV</button><button id="blocks-csv" class="secondary" type="button">Download summary CSV</button><button id="json-backup" class="secondary" type="button">Download full JSON backup</button><button id="retry-save" class="secondary" type="button">Retry Google Sheets save</button></div>
-      <div class="actions"><button id="leave-fullscreen" class="secondary" type="button">Exit fullscreen</button></div><p class="small muted" style="margin-top:20px">Participant: ${escapeHTML(s.participant_id)} · Session: ${escapeHTML(s.session_id.slice(0,8))}</p>`,"results");
-    bind("trials-csv",()=>downloadCSV(s.trials,TRIAL_COLUMNS,`Posner_Trials_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.csv`));
-    bind("blocks-csv",()=>downloadCSV(s.blocks,BLOCK_COLUMNS,`Posner_Blocks_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.csv`));
+      <div class="actions"><button id="leave-fullscreen" class="secondary" type="button">Exit fullscreen</button></div><p class="small muted" style="margin-top:20px">${escapeHTML(s.first_name)} ${escapeHTML(s.last_name)} · Student ID: ${escapeHTML(s.student_id)} · Section: ${escapeHTML(s.section_number)} · Session: ${escapeHTML(s.session_id.slice(0,8))}</p>`,"results");
+    bind("trials-csv",()=>downloadCSV(s.trials,TRIAL_COLUMNS,`Posner_Trials_${safeFilename(s.student_id)}_${s.session_id.slice(0,8)}.csv`));
+    bind("blocks-csv",()=>downloadCSV(s.blocks,BLOCK_COLUMNS,`Posner_Blocks_${safeFilename(s.student_id)}_${s.session_id.slice(0,8)}.csv`));
     bind("json-backup",()=>downloadJSON(s));bind("retry-save",()=>void flushOutbox());
     bind("leave-fullscreen",async()=>{if(document.fullscreenElement)try{await document.exitFullscreen();}catch(_){};});
     updateSaveStatus();
@@ -531,11 +562,12 @@
     downloadText("\uFEFF"+lines.join("\r\n")+"\r\n","text/csv;charset=utf-8",name);
   }
   function downloadJSON(s) {
-    downloadText(JSON.stringify(s,null,2),"application/json",`Posner_Backup_${safeFilename(s.participant_id)}_${s.session_id.slice(0,8)}.json`);
+    // The legacy fallback keeps previous-version browser backups downloadable.
+    downloadText(JSON.stringify(s,null,2),"application/json",`Posner_Backup_${safeFilename(s.student_id || s.participant_id || "participant")}_${s.session_id.slice(0,8)}.json`);
   }
   function queueBlock(blockRow) {
     if(!endpointReady())return;
-    const job={endpoint:GOOGLE_SCRIPT_URL.trim(),payload:{schema_version:1,task:"posner_cueing",batch_id:uuid(),receipt_token:uuid()+uuid(),
+    const job={endpoint:GOOGLE_SCRIPT_URL.trim(),payload:{schema_version:SCHEMA_VERSION,task:"posner_cueing",batch_id:uuid(),receipt_token:uuid()+uuid(),
       session_id:state.session.session_id,trials:state.session.trials.filter(r=>r.block_number===blockRow.block_number),blocks:[blockRow]},attempts:0,last_error:"",stored:false};
     store.outbox.push(job);storePendingJob(job);
   }
