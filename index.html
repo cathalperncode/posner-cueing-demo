@@ -79,7 +79,7 @@
   <script>
   "use strict";
 
-  const TASK_VERSION = "posner-1.1.0";
+  const TASK_VERSION = "posner-1.2.0";
   const SCHEMA_VERSION = 2;
   const STUDENT_FIELDS = Object.freeze([
     {key:"first_name",id:"first-name",label:"first name",maxLength:80},
@@ -88,7 +88,8 @@
     {key:"section_number",id:"section-number",label:"section number",maxLength:64}
   ]);
   const SETTINGS = Object.freeze({
-    trialsPerBlock:50, validPerBlock:35, fixationMs:800, cueDurationMs:100,
+    trialsPerBlock:50, validPerBlock:35,
+    fixationDelaysMs:Object.freeze([300,350,400,450,500,550,600]), cueDurationMs:100,
     peripheralSOAMs:150, endogenousSOAMs:500, responseDeadlineMs:1500,
     itiMs:650, countdownMs:3000, minimumRTMs:100,
     background:"#a0a0a0", cueColor:"#c60000", targetSizePx:48,
@@ -160,7 +161,10 @@
         rows.push({target_side:target,cue_side:valid?target:(target==="left"?"right":"left"),validity:valid?"valid":"invalid"});
       }
     }
-    return shuffle(rows);
+    // Independent draws with replacement: repeats are allowed, and delay
+    // counts are not forced to balance or tied to target side or validity.
+    return shuffle(rows).map(row=>({...row,
+      fixation_ms_planned:SETTINGS.fixationDelaysMs[Math.floor(randomUnit()*SETTINGS.fixationDelaysMs.length)]}));
   }
   function rounded(n) { return Number.isFinite(n) ? Math.round(n*1000)/1000 : null; }
   function mean(a) { return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
@@ -312,7 +316,7 @@
     setPage(`<p class="eyebrow">Block 1 of 2 · 50 trials</p><h1>Watch the center.<br>Respond to the X.</h1>
       <p class="lead">A red circle will briefly appear on the left or right of the fixation cross. Then a black <strong>X</strong> will appear on either side.</p>
       <div class="steps"><div class="step"><span class="num">1 · Keep looking</span><div class="symbol">+</div><span>Eyes on the central cross</span></div><div class="step"><span class="num">2 · Wait</span><div class="symbol"><span class="ring"></span></div><span>Do not respond to the circle</span></div><div class="step"><span class="num">3 · Respond</span><div class="symbol">X</div><span>Press <kbd>Space</kbd> for the X</span></div></div>
-      <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
+      <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The waiting time before each cue will vary.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
       <div class="panel"><h2>Your details</h2><p class="small muted">All four fields are required. Your details will be recorded with your results.</p>
       <div class="grid"><label>First name<small>Enter your first name.</small><input id="first-name" name="first_name" type="text" maxlength="80" autocomplete="given-name" spellcheck="false" required></label>
       <label>Last name<small>Enter your last name.</small><input id="last-name" name="last_name" type="text" maxlength="80" autocomplete="family-name" spellcheck="false" required></label>
@@ -426,7 +430,7 @@
       const remaining=SETTINGS.countdownMs-(now-state.countdownStart);
       if(remaining<=tolerance)beginTrial(now);
       else {const number=Math.ceil(remaining/1000);if(number!==state.lastCountdown){drawCountdown(number);state.lastCountdown=number;}}
-    } else if(state.phase==="fixation" && now-c.trialStart>=SETTINGS.fixationMs-tolerance) {
+    } else if(state.phase==="fixation" && now-c.trialStart>=c.design.fixation_ms_planned-tolerance) {
       c.cueOnset=now;setPhase("cue");drawCue();
     } else if(state.phase==="cue" || state.phase==="gap") {
       if(state.phase==="cue" && now-c.cueOnset>=SETTINGS.cueDurationMs-tolerance) {
@@ -453,7 +457,7 @@
     const timingFlag=c.maxFrame>Math.max(50,2.5*state.frameMs)
       ||(actualCue!==null && Math.abs(actualCue-SETTINGS.cueDurationMs)>timingTolerance)
       ||(actualSOA!==null && Math.abs(actualSOA-b.soa)>timingTolerance)
-      ||(actualFix!==null && Math.abs(actualFix-SETTINGS.fixationMs)>timingTolerance);
+      ||(actualFix!==null && Math.abs(actualFix-c.design.fixation_ms_planned)>timingTolerance);
     const responded=Number.isFinite(rt),interrupted=Boolean(interruptReason);
     const early=c.earlyCount>0 || (responded && rt<SETTINGS.minimumRTMs);
     const reasons=[];
@@ -468,7 +472,7 @@
       ...c.design,responded:responded?1:0,response_status:interrupted?"interrupted":(status==="miss"?"miss":(early?"anticipatory":"hit")),
       rt_ms:rounded(rt),anticipation_count:c.earlyCount,first_early_response_phase:c.earlyPhase,first_early_response_time_ms:rounded(c.earlyTime),
       miss:status==="miss"?1:0,analysis_include:responded&&!reasons.length?1:0,exclusion_reason:reasons.join(";"),
-      fixation_ms_planned:SETTINGS.fixationMs,cue_duration_ms_planned:SETTINGS.cueDurationMs,cue_target_soa_ms_planned:b.soa,
+      fixation_ms_planned:c.design.fixation_ms_planned,cue_duration_ms_planned:SETTINGS.cueDurationMs,cue_target_soa_ms_planned:b.soa,
       cue_target_gap_ms_planned:b.soa-SETTINGS.cueDurationMs,response_deadline_ms:SETTINGS.responseDeadlineMs,iti_ms_planned:SETTINGS.itiMs,
       cue_duration_ms_actual:rounded(actualCue),cue_target_soa_ms_actual:rounded(actualSOA),fixation_ms_actual:rounded(actualFix),
       max_frame_interval_ms:rounded(c.maxFrame),timing_flag:timingFlag?1:0,interrupted:interrupted?1:0,interrupt_reason:interruptReason,
