@@ -79,7 +79,7 @@
   <script>
   "use strict";
 
-  const TASK_VERSION = "posner-1.2.0";
+  const TASK_VERSION = "posner-1.3.0";
   const SCHEMA_VERSION = 2;
   const STUDENT_FIELDS = Object.freeze([
     {key:"first_name",id:"first-name",label:"first name",maxLength:80},
@@ -90,7 +90,7 @@
   const SETTINGS = Object.freeze({
     trialsPerBlock:50, validPerBlock:35,
     fixationDelaysMs:Object.freeze([300,350,400,450,500,550,600]), cueDurationMs:100,
-    peripheralSOAMs:150, endogenousSOAMs:500, responseDeadlineMs:1500,
+    cueTargetSOAsMs:Object.freeze([300,400,500,600,700,800,900]), responseDeadlineMs:1500,
     itiMs:650, countdownMs:3000, minimumRTMs:100,
     background:"#a0a0a0", cueColor:"#c60000", targetSizePx:48,
     cueDiameterPx:84, fixationSizePx:28, minWidth:700, minHeight:440
@@ -100,8 +100,8 @@
   const BATCH_PREFIX = `${STORAGE_KEY}:batch:`;
   const LATEST_SESSION_KEY = `${STORAGE_KEY}:latest`;
   const BLOCKS = [
-    {number:1, type:"peripheral", label:"Peripheral cue", soa:SETTINGS.peripheralSOAMs},
-    {number:2, type:"endogenous", label:"Central arrow", soa:SETTINGS.endogenousSOAMs}
+    {number:1, type:"peripheral", label:"Peripheral cue"},
+    {number:2, type:"endogenous", label:"Central arrow"}
   ];
   const TRIAL_COLUMNS = ["record_id","session_id","first_name","last_name","student_id","section_number","task_version","block_number","cue_type","trial_in_block","trial_global","cue_side","target_side","validity","responded","response_status","rt_ms","anticipation_count","first_early_response_phase","first_early_response_time_ms","miss","analysis_include","exclusion_reason","fixation_ms_planned","cue_duration_ms_planned","cue_target_soa_ms_planned","cue_target_gap_ms_planned","response_deadline_ms","iti_ms_planned","cue_duration_ms_actual","cue_target_soa_ms_actual","fixation_ms_actual","max_frame_interval_ms","timing_flag","interrupted","interrupt_reason","fullscreen_at_target","viewport_width","viewport_height","pixel_ratio","target_offset_px","target_size_px","cue_diameter_px","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","target_onset_utc","response_timestamp_utc","server_received_utc"];
   const BLOCK_COLUMNS = ["record_id","session_id","first_name","last_name","student_id","section_number","task_version","block_number","cue_type","n_trials","n_valid","n_invalid","n_responded","n_misses","n_anticipatory_trials","n_interrupted","n_timing_flagged","n_included_valid","n_included_invalid","mean_rt_valid_ms","mean_rt_invalid_ms","median_rt_valid_ms","median_rt_invalid_ms","cueing_effect_ms","block_start_utc","block_end_utc","timestamp_utc","timestamp_local","timezone","utc_offset_minutes","server_received_utc"];
@@ -164,7 +164,8 @@
     // Independent draws with replacement: repeats are allowed, and delay
     // counts are not forced to balance or tied to target side or validity.
     return shuffle(rows).map(row=>({...row,
-      fixation_ms_planned:SETTINGS.fixationDelaysMs[Math.floor(randomUnit()*SETTINGS.fixationDelaysMs.length)]}));
+      fixation_ms_planned:SETTINGS.fixationDelaysMs[Math.floor(randomUnit()*SETTINGS.fixationDelaysMs.length)],
+      cue_target_soa_ms_planned:SETTINGS.cueTargetSOAsMs[Math.floor(randomUnit()*SETTINGS.cueTargetSOAsMs.length)]}));
   }
   function rounded(n) { return Number.isFinite(n) ? Math.round(n*1000)/1000 : null; }
   function mean(a) { return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
@@ -316,7 +317,7 @@
     setPage(`<p class="eyebrow">Block 1 of 2 · 50 trials</p><h1>Watch the center.<br>Respond to the X.</h1>
       <p class="lead">A red circle will briefly appear on the left or right of the fixation cross. Then a black <strong>X</strong> will appear on either side.</p>
       <div class="steps"><div class="step"><span class="num">1 · Keep looking</span><div class="symbol">+</div><span>Eyes on the central cross</span></div><div class="step"><span class="num">2 · Wait</span><div class="symbol"><span class="ring"></span></div><span>Do not respond to the circle</span></div><div class="step"><span class="num">3 · Respond</span><div class="symbol">X</div><span>Press <kbd>Space</kbd> for the X</span></div></div>
-      <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The waiting time before each cue will vary.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
+      <ul class="checks"><li>Press <kbd>Space</kbd> as quickly as you can <strong>when the X appears</strong>, whichever side it is on.</li><li>Keep your eyes on the cross throughout each trial. Release Space between responses.</li><li>The waits before the cue and between the cue and the X will vary.</li><li>The X appears where the circle was on <strong>70% of trials</strong> and on the opposite side on <strong>30%</strong>.</li></ul>
       <div class="panel"><h2>Your details</h2><p class="small muted">All four fields are required. Your details will be recorded with your results.</p>
       <div class="grid"><label>First name<small>Enter your first name.</small><input id="first-name" name="first_name" type="text" maxlength="80" autocomplete="given-name" spellcheck="false" required></label>
       <label>Last name<small>Enter your last name.</small><input id="last-name" name="last_name" type="text" maxlength="80" autocomplete="family-name" spellcheck="false" required></label>
@@ -436,7 +437,7 @@
       if(state.phase==="cue" && now-c.cueOnset>=SETTINGS.cueDurationMs-tolerance) {
         c.cueOffset=now;setPhase("gap");drawBase();
       }
-      if(now-c.cueOnset>=BLOCKS[state.blockIndex].soa-tolerance)targetOn(now);
+      if(now-c.cueOnset>=c.design.cue_target_soa_ms_planned-tolerance)targetOn(now);
     } else if(state.phase==="target" && now-c.targetOnset>=SETTINGS.responseDeadlineMs) {
       finishTrial(null,"miss",now);
     } else if(state.phase==="iti" && now-state.itiStart>=SETTINGS.itiMs-tolerance) {
@@ -456,7 +457,7 @@
     const timingTolerance=Math.max(25,1.5*state.frameMs);
     const timingFlag=c.maxFrame>Math.max(50,2.5*state.frameMs)
       ||(actualCue!==null && Math.abs(actualCue-SETTINGS.cueDurationMs)>timingTolerance)
-      ||(actualSOA!==null && Math.abs(actualSOA-b.soa)>timingTolerance)
+      ||(actualSOA!==null && Math.abs(actualSOA-c.design.cue_target_soa_ms_planned)>timingTolerance)
       ||(actualFix!==null && Math.abs(actualFix-c.design.fixation_ms_planned)>timingTolerance);
     const responded=Number.isFinite(rt),interrupted=Boolean(interruptReason);
     const early=c.earlyCount>0 || (responded && rt<SETTINGS.minimumRTMs);
@@ -472,8 +473,8 @@
       ...c.design,responded:responded?1:0,response_status:interrupted?"interrupted":(status==="miss"?"miss":(early?"anticipatory":"hit")),
       rt_ms:rounded(rt),anticipation_count:c.earlyCount,first_early_response_phase:c.earlyPhase,first_early_response_time_ms:rounded(c.earlyTime),
       miss:status==="miss"?1:0,analysis_include:responded&&!reasons.length?1:0,exclusion_reason:reasons.join(";"),
-      fixation_ms_planned:c.design.fixation_ms_planned,cue_duration_ms_planned:SETTINGS.cueDurationMs,cue_target_soa_ms_planned:b.soa,
-      cue_target_gap_ms_planned:b.soa-SETTINGS.cueDurationMs,response_deadline_ms:SETTINGS.responseDeadlineMs,iti_ms_planned:SETTINGS.itiMs,
+      fixation_ms_planned:c.design.fixation_ms_planned,cue_duration_ms_planned:SETTINGS.cueDurationMs,cue_target_soa_ms_planned:c.design.cue_target_soa_ms_planned,
+      cue_target_gap_ms_planned:c.design.cue_target_soa_ms_planned-SETTINGS.cueDurationMs,response_deadline_ms:SETTINGS.responseDeadlineMs,iti_ms_planned:SETTINGS.itiMs,
       cue_duration_ms_actual:rounded(actualCue),cue_target_soa_ms_actual:rounded(actualSOA),fixation_ms_actual:rounded(actualFix),
       max_frame_interval_ms:rounded(c.maxFrame),timing_flag:timingFlag?1:0,interrupted:interrupted?1:0,interrupt_reason:interruptReason,
       fullscreen_at_target:c.fullscreenAtTarget===null?null:(c.fullscreenAtTarget?1:0),viewport_width:g.width,viewport_height:g.height,
@@ -508,7 +509,7 @@
     setPage(`<p class="eyebrow">Block 1 complete · Take a break</p><h1>Two ways to<br>direct attention</h1>
       <div class="grid"><div class="panel"><div class="mini" aria-hidden="true"><span class="fix">+</span><span class="ring"></span></div><h2>Exogenous attention</h2><p>In the first block, the red circle appeared at a possible target location. A sudden peripheral event can rapidly draw attention to its location.</p><p class="muted small" style="margin-bottom:0">This is commonly called <strong>stimulus-driven</strong> orienting.</p></div>
       <div class="panel"><div class="mini" aria-hidden="true"><span class="fix">+</span><span class="arrow">←</span></div><h2>Endogenous attention</h2><p>Next, an arrow will appear <strong>above the central cross</strong>. Use its direction to prepare for the X while keeping your eyes on the cross.</p><p class="muted small" style="margin-bottom:0">Using the meaning of a cue to direct attention is commonly called <strong>goal-directed</strong> orienting.</p></div></div>
-      <div class="panel"><h2>Block 2: Same response, different cue</h2><p class="lead">Press <kbd>Space</kbd> when the <strong>black X</strong> appears, whichever side it is on. Do not respond to the arrow.</p><p>The arrow points toward the X on <strong>70% of trials</strong> and away from it on <strong>30%</strong>. There are <strong>50 trials</strong>. Keep looking at the cross and release Space between responses.</p>
+      <div class="panel"><h2>Block 2: Same response, different cue</h2><p class="lead">Press <kbd>Space</kbd> when the <strong>black X</strong> appears, whichever side it is on. Do not respond to the arrow.</p><p>The arrow points toward the X on <strong>70% of trials</strong> and away from it on <strong>30%</strong>. There are <strong>50 trials</strong>. Keep looking at the cross and release Space between responses. The wait between the arrow and the X varies on each trial.</p>
       <p id="start-error" class="notice error" hidden></p><div class="actions"><button id="begin-second" type="button">Begin block 2 · 3-second countdown</button></div></div>
       <p class="note">Both cues predict the target’s location, so both blocks can involve expectations. They illustrate different ways of guiding attention without isolating completely separate processes.</p>
       <p id="save-status" class="notice"></p>`,"between");
@@ -540,7 +541,7 @@
     setPage(`<p class="eyebrow">Both blocks complete</p><h1>Your cueing results</h1><p class="lead">The cueing effect is the mean reaction time on <strong>invalid trials minus valid trials</strong>, calculated separately for each block.</p>
       <div class="panel table-scroll"><table><thead><tr><th>Block / included trials</th><th>Valid RT</th><th>Invalid RT</th><th>Invalid − valid</th></tr></thead><tbody>${rows}</tbody></table></div>
       <p>A <strong>positive</strong> difference means you responded faster when the cue indicated the target’s location. A negative difference means the reverse occurred in this run.</p>
-      <p class="note">Each block contains only 15 invalid trials, so individual results can be noisy. Compare valid and invalid trials <strong>within each block</strong>. Block order and cue timing also differ, so the overall difference between blocks does not isolate the two kinds of attention.</p>
+      <p class="note">Each block contains only 15 invalid trials, so individual results can be noisy. Compare valid and invalid trials <strong>within each block</strong>. These averages combine trials with different cue-to-target delays, and cueing effects can depend on the delay. Both blocks use the same possible delays, but block order is fixed, so the overall difference between blocks does not isolate the two kinds of attention.</p>
       <details class="panel"><summary>Which trials were included?</summary><p style="margin-top:16px">${s.trials.length-excluded} of ${s.trials.length} trial slots were included. Mean and median RTs use responses from 100 to 1,500 ms, with no early Space press or held key, no interruption, and no flagged timing problem.</p><p>All recorded trials remain in the downloadable and submitted data, including misses and excluded trials. There is no additional outlier trimming.</p><p class="small muted" style="margin-bottom:0">Fixation was instructed, not measured. Display and keyboard timing depend on the computer and browser.</p></details>
       <p id="save-status" class="notice"></p><div class="actions"><button id="trials-csv" type="button">Download trial CSV</button><button id="blocks-csv" class="secondary" type="button">Download summary CSV</button><button id="json-backup" class="secondary" type="button">Download full JSON backup</button><button id="retry-save" class="secondary" type="button">Retry Google Sheets save</button></div>
       <div class="actions"><button id="leave-fullscreen" class="secondary" type="button">Exit fullscreen</button></div><p class="small muted" style="margin-top:20px">${escapeHTML(s.first_name)} ${escapeHTML(s.last_name)} · Student ID: ${escapeHTML(s.student_id)} · Section: ${escapeHTML(s.section_number)} · Session: ${escapeHTML(s.session_id.slice(0,8))}</p>`,"results");
